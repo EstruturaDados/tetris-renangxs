@@ -5,98 +5,90 @@
 #define TAMANHO_FILA 5
 #define TAMANHO_PILHA 3
 
-// Representa uma peça do Tetris
+// 🧩 Estrutura que representa uma peça
 typedef struct {
-    char nome; // 'I', 'O', 'T', 'L'
-    int id;    // identificador único crescente
+    char nome;  // Tipo da peça ('I', 'O', 'T', 'L')
+    int id;     // Identificador único
 } Peca;
 
-// Fila circular de peças futuras
+// 🧱 Estrutura da fila circular
 typedef struct {
     Peca itens[TAMANHO_FILA];
-    int frente;     // índice do elemento da frente
-    int tras;       // índice do último elemento
-    int quantidade; // quantos elementos estão na fila
+    int frente;
+    int tras;
+    int quantidade;
 } Fila;
 
-// Pilha de reserva (LIFO)
+// 📦 Estrutura da pilha (reserva)
 typedef struct {
     Peca itens[TAMANHO_PILHA];
-    int topo; // índice do topo (-1 quando vazia)
+    int topo;
 } Pilha;
 
-/* ----------- Funções da Fila (fila circular) ----------- */
-
-// Inicializa a fila
+// ----------------- Funções da Fila -----------------
 void inicializarFila(Fila *f) {
     f->frente = 0;
     f->tras = -1;
     f->quantidade = 0;
 }
 
-// Verifica se a fila está cheia
 int filaCheia(Fila *f) {
     return f->quantidade == TAMANHO_FILA;
 }
 
-// Verifica se a fila está vazia
 int filaVazia(Fila *f) {
     return f->quantidade == 0;
 }
 
-// Enfileira uma peça no final (enqueue)
-int enfileirar(Fila *f, Peca p) {
-    if (filaCheia(f)) return 0; // falha
+void enfileirar(Fila *f, Peca p) {
+    if (filaCheia(f)) return;
     f->tras = (f->tras + 1) % TAMANHO_FILA;
     f->itens[f->tras] = p;
     f->quantidade++;
-    return 1; // sucesso
 }
 
-// Desenfileira a peça da frente (dequeue). Retorna peça com id -1 se vazia.
 Peca desenfileirar(Fila *f) {
-    Peca vazio = {'-', -1};
-    if (filaVazia(f)) return vazio;
-    Peca removida = f->itens[f->frente];
-    f->frente = (f->frente + 1) % TAMANHO_FILA;
-    f->quantidade--;
+    Peca removida = {'-', -1};
+    if (!filaVazia(f)) {
+        removida = f->itens[f->frente];
+        f->frente = (f->frente + 1) % TAMANHO_FILA;
+        f->quantidade--;
+    }
     return removida;
 }
 
-/* ----------- Funções da Pilha ----------- */
-
-// Inicializa a pilha
+// ----------------- Funções da Pilha -----------------
 void inicializarPilha(Pilha *p) {
     p->topo = -1;
 }
 
-// Verifica se a pilha está vazia
 int pilhaVazia(Pilha *p) {
     return p->topo == -1;
 }
 
-// Verifica se a pilha está cheia
 int pilhaCheia(Pilha *p) {
-    return p->topo == (TAMANHO_PILHA - 1);
+    return p->topo == TAMANHO_PILHA - 1;
 }
 
-// Empilha (push). Retorna 1 se sucesso, 0 se cheia.
-int empilhar(Pilha *p, Peca nova) {
-    if (pilhaCheia(p)) return 0;
+void empilhar(Pilha *p, Peca nova) {
+    if (pilhaCheia(p)) {
+        printf("Pilha cheia! Nao e possivel reservar mais pecas.\n");
+        return;
+    }
     p->itens[++p->topo] = nova;
-    return 1;
 }
 
-// Desempilha (pop). Se vazia, retorna peça com id -1.
 Peca desempilhar(Pilha *p) {
-    Peca vazio = {'-', -1};
-    if (pilhaVazia(p)) return vazio;
-    return p->itens[p->topo--];
+    Peca removida = {'-', -1};
+    if (!pilhaVazia(p)) {
+        removida = p->itens[p->topo--];
+    } else {
+        printf("Pilha vazia! Nenhuma peca reservada.\n");
+    }
+    return removida;
 }
 
-/* ----------- Geração automática de peças ----------- */
-
-// Gera peça com tipo aleatório e id sequencial (id passado como argumento)
+// ----------------- Funções Gerais -----------------
 Peca gerarPeca(int id) {
     char tipos[] = {'I', 'O', 'T', 'L'};
     Peca nova;
@@ -105,71 +97,69 @@ Peca gerarPeca(int id) {
     return nova;
 }
 
-/* ----------- Operações especiais (trocas) ----------- */
-
-// Troca a peça da frente da fila com o topo da pilha.
-// Retorna 1 se troca realizada, 0 caso contrário (fila/pilha vazias).
-int trocarTopoFilaPilha(Fila *f, Pilha *p) {
-    if (filaVazia(f) || pilhaVazia(p)) return 0;
-    int idxFrente = f->frente;
-    Peca aux = f->itens[idxFrente];
-    f->itens[idxFrente] = p->itens[p->topo];
-    p->itens[p->topo] = aux;
-    return 1;
-}
-
-// Troca múltipla: troca os 3 primeiros elementos da fila com as 3 peças da pilha.
-// Requisito: fila deve conter pelo menos 3 elementos e pilha deve ter 3 elementos.
-// Retorna 1 se troca realizada, 0 caso contrário.
-int trocaMultipla(Fila *f, Pilha *p) {
-    if (f->quantidade < 3 || p->topo < 2) return 0; // precisa ter ao menos 3 na fila e 3 na pilha
-
-    // Para i = 0..2, trocar fila[posFila(i)] <-> pilha[topo - i]
-    for (int i = 0; i < 3; i++) {
-        int posFila = (f->frente + i) % TAMANHO_FILA;
-        int posPilha = p->topo - i;
-        Peca aux = f->itens[posFila];
-        f->itens[posFila] = p->itens[posPilha];
-        p->itens[posPilha] = aux;
-    }
-    return 1;
-}
-
-/* ----------- Exibição do estado (usabilidade) ----------- */
-
-// Exibe a fila e a pilha de forma clara
+// Exibe o estado atual da fila e pilha
 void exibirEstado(Fila *f, Pilha *p) {
-    printf("\n----------------------------------------\n");
+    printf("\n=========================\n");
     printf("Estado atual:\n");
 
-    // Fila
-    printf("Fila de pecas:\t");
+    printf("Fila de pecas: ");
     if (filaVazia(f)) {
-        printf("[vazia]");
+        printf("[vazia]\n");
     } else {
         for (int i = 0; i < f->quantidade; i++) {
-            int idx = (f->frente + i) % TAMANHO_FILA;
-            printf("[%c %d] ", f->itens[idx].nome, f->itens[idx].id);
+            int indice = (f->frente + i) % TAMANHO_FILA;
+            printf("[%c %d] ", f->itens[indice].nome, f->itens[indice].id);
         }
+        printf("\n");
     }
-    printf("\n");
 
-    // Pilha (Topo -> Base)
-    printf("Pilha reserva:\t(Topo -> Base): ");
+    printf("Pilha de reserva (Topo -> Base): ");
     if (pilhaVazia(p)) {
-        printf("[vazia]");
+        printf("[vazia]\n");
     } else {
         for (int i = p->topo; i >= 0; i--) {
             printf("[%c %d] ", p->itens[i].nome, p->itens[i].id);
         }
+        printf("\n");
     }
-    printf("\n----------------------------------------\n");
+
+    printf("=========================\n");
 }
 
-/* ----------- Programa principal (menu) ----------- */
+// Troca a peça da frente da fila com o topo da pilha
+void trocarTopoFilaPilha(Fila *f, Pilha *p) {
+    if (filaVazia(f) || pilhaVazia(p)) {
+        printf("Nao e possivel trocar! Fila ou pilha vazia.\n");
+        return;
+    }
+
+    int indiceFrente = f->frente;
+    Peca temp = f->itens[indiceFrente];
+    f->itens[indiceFrente] = p->itens[p->topo];
+    p->itens[p->topo] = temp;
+
+    printf("Troca realizada entre frente da fila e topo da pilha.\n");
+}
+
+// Troca múltipla entre as 3 primeiras peças da fila e as 3 da pilha
+void trocaMultipla(Fila *f, Pilha *p) {
+    if (f->quantidade < 3 || p->topo < 2) {
+        printf("Nao ha pecas suficientes para troca multipla.\n");
+        return;
+    }
+
+    for (int i = 0; i < 3; i++) {
+        int indiceFila = (f->frente + i) % TAMANHO_FILA;
+        Peca temp = f->itens[indiceFila];
+        f->itens[indiceFila] = p->itens[p->topo - i];
+        p->itens[p->topo - i] = temp;
+    }
+
+    printf("Troca multipla realizada entre as 3 primeiras da fila e as 3 da pilha.\n");
+}
 
 int main() {
-    srand((unsigned) time(NULL));
+    srand(time(NULL));
 
     Fila fila;
     Pilha pilha;
@@ -179,104 +169,75 @@ int main() {
     int proximoId = 0;
     int opcao;
 
-    // Inicializa a fila com TAMANHO_FILA peças para começar
+    // Inicializa a fila com 5 peças
     for (int i = 0; i < TAMANHO_FILA; i++) {
         enfileirar(&fila, gerarPeca(proximoId++));
     }
 
     do {
         exibirEstado(&fila, &pilha);
-
-        // Menu
         printf("Opcoes disponiveis:\n");
         printf("1 - Jogar peca da frente da fila\n");
-        printf("2 - Enviar peca da fila para a pilha de reserva\n");
-        printf("3 - Usar peca da pilha de reserva\n");
-        printf("4 - Trocar peça da frente da fila com o topo da pilha\n");
-        printf("5 - Trocar os 3 primeiros da fila com as 3 da pilha\n");
+        printf("2 - Reservar peca (mover da fila para pilha)\n");
+        printf("3 - Usar peca reservada (remover do topo da pilha)\n");
+        printf("4 - Trocar frente da fila com topo da pilha\n");
+        printf("5 - Trocar as 3 primeiras da fila com as 3 da pilha\n");
         printf("0 - Sair\n");
         printf("Escolha uma opcao: ");
-        if (scanf("%d", &opcao) != 1) {
-            // entrada inválida: limpar stdin e continuar
-            int c;
-            while ((c = getchar()) != '\n' && c != EOF) {}
-            printf("Entrada invalida. Tente novamente.\n");
-            opcao = -1;
-            continue;
-        }
+        scanf("%d", &opcao);
 
         switch (opcao) {
-            case 1: { // Jogar peça (dequeue)
-                if (filaVazia(&fila)) {
-                    printf("Nao ha pecas na fila para jogar.\n");
-                } else {
+            case 1: { // Jogar peça
+                if (!filaVazia(&fila)) {
                     Peca jogada = desenfileirar(&fila);
                     printf("Jogando peca [%c %d]\n", jogada.nome, jogada.id);
-                    // Após remoção, gerar nova peça e enfileirar para manter fila cheia (quando possível)
-                    if (!filaCheia(&fila)) {
-                        Peca nova = gerarPeca(proximoId++);
-                        enfileirar(&fila, nova);
-                        printf("Nova peca gerada e adicionada ao final da fila: [%c %d]\n", nova.nome, nova.id);
-                    }
+                    enfileirar(&fila, gerarPeca(proximoId++));
+                } else {
+                    printf("Fila vazia!\n");
                 }
                 break;
             }
-
-            case 2: { // Reservar peça (mover da frente da fila para topo da pilha)
-                if (filaVazia(&fila)) {
-                    printf("Fila vazia: nenhuma peca para reservar.\n");
-                } else if (pilhaCheia(&pilha)) {
-                    printf("Pilha de reserva cheia: nao e possivel reservar.\n");
-                } else {
-                    // Remove da fila e empilha na pilha
-                    Peca reservada = desenfileirar(&fila);
-                    if (!empilhar(&pilha, reservada)) {
-                        // caso improvável porque checamos pilhaCheia, mas por segurança:
-                        printf("Erro ao empilhar a peca.\n");
+            case 2: { // Reservar peça
+                if (!filaVazia(&fila)) {
+                    if (!pilhaCheia(&pilha)) {
+                        Peca reservada = desenfileirar(&fila);
+                        printf("Reservando peca [%c %d]\n", reservada.nome, reservada.id);
+                        empilhar(&pilha, reservada);
+                        enfileirar(&fila, gerarPeca(proximoId++));
                     } else {
-                        printf("Peca reservada [%c %d] movida para o topo da pilha.\n", reservada.nome, reservada.id);
-                        // Gera nova peça para manter fila cheia
-                        if (!filaCheia(&fila)) {
-                            Peca nova = gerarPeca(proximoId++);
-                            enfileirar(&fila, nova);
-                            printf("Nova peca gerada e adicionada ao final da fila: [%c %d]\n", nova.nome, nova.id);
-                        }
+                        printf("Pilha cheia! Nao e possivel reservar.\n");
                     }
+                } else {
+                    printf("Fila vazia!\n");
                 }
                 break;
             }
-
-            case 3: { // Usar peça reservada (pop da pilha)
-                if (pilhaVazia(&pilha)) {
-                    printf("Pilha vazia: nenhuma peca reservada para usar.\n");
-                } else {
+            case 3: { // Usar peça reservada
+                if (!pilhaVazia(&pilha)) {
                     Peca usada = desempilhar(&pilha);
                     printf("Usando peca reservada [%c %d]\n", usada.nome, usada.id);
-                    // Após remoção da pilha (que é uma remoção), gerar nova peça e enfileirar para manter fila cheia
-                    if (!filaCheia(&fila)) {
-                        Peca nova = gerarPeca(proximoId++);
-                        enfileirar(&fila, nova);
-                        printf("Nova peca gerada e adicionada ao final da fila: [%c %d]\n", nova.nome, nova.id);
-                    }
-                }
-                break;
-            }
-
-            case 4: { // Trocar peça da frente da fila com o topo da pilha
-                if (filaVazia(&fila)) {
-                    printf("Nao e possivel trocar: fila vazia.\n");
-                } else if (pilhaVazia(&pilha)) {
-                    printf("Nao e possivel trocar: pilha vazia.\n");
+                    enfileirar(&fila, gerarPeca(proximoId++));
                 } else {
-                    if (trocarTopoFilaPilha(&fila, &pilha)) {
-                        printf("Troca realizada entre a frente da fila e o topo da pilha.\n");
-                    } else {
-                        printf("Falha na troca.\n");
-                    }
-                    // Trocas não removem elementos, portanto NENHUMA peça é gerada aqui.
+                    printf("Nenhuma peca reservada.\n");
                 }
                 break;
             }
+            case 4: { // Trocar frente da fila com topo da pilha
+                trocarTopoFilaPilha(&fila, &pilha);
+                break;
+            }
+            case 5: { // Troca múltipla
+                trocaMultipla(&fila, &pilha);
+                break;
+            }
+            case 0:
+                printf("Saindo do jogo...\n");
+                break;
+            default:
+                printf("Opcao invalida!\n");
+        }
 
-            case 5: { // Troca múltipla: os 3 primeiros da fila <-> 3 da pilha
-                if (fila.quantidade < 3) {
+    } while (opcao != 0);
+
+    return 0;
+}
